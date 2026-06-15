@@ -1,2 +1,2 @@
-Last deployment trigger: 2026-06-16T01:00:00+03:00
-Reason: Supabase environment variables resynced via Vercel integration.
+Last deployment trigger: 2026-06-16T01:37:00+03:00
+Reason: AUTH_SECRET environment variable added. Triggering fresh production redeploy.
