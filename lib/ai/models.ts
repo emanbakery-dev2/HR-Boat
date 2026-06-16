@@ -23,7 +23,7 @@ export type ChatModel = {
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
 };
 
-// ─── Gemini model shown in UI when direct Gemini provider is active ───────────
+// ─── Gemini model ──────────────────────────────────────────────────────────────────
 export const geminiChatModel: ChatModel = {
   id: "google/gemini-2.5-flash",
   name: "Gemini 2.5 Flash",
@@ -31,7 +31,15 @@ export const geminiChatModel: ChatModel = {
   description: "Google Gemini 2.5 Flash — fast and capable",
 };
 
-// ─── Original gateway models (preserved untouched for future AI Gateway use) ──
+// ─── Groq model ───────────────────────────────────────────────────────────────────
+export const groqChatModel: ChatModel = {
+  id: "groq/llama-3.3-70b-versatile",
+  name: "Llama 3.3 70B",
+  provider: "groq",
+  description: "Meta Llama 3.3 70B on Groq — ultra-fast inference",
+};
+
+// ─── Original gateway models (preserved for future AI Gateway use) ───────────
 export const chatModels: ChatModel[] = [
   {
     id: "deepseek/deepseek-v3.2",
@@ -72,9 +80,14 @@ export const chatModels: ChatModel[] = [
   },
 ];
 
+// Returns the active model based on available API keys
+// Priority: Gemini > Groq > Gateway models
 export function getActiveModels(): ChatModel[] {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return [geminiChatModel];
+  }
+  if (process.env.GROQ_API_KEY) {
+    return [groqChatModel];
   }
   return chatModels;
 }
@@ -166,10 +179,10 @@ export async function getAllGatewayModels(): Promise<
 }
 
 export const allowedModelIds = new Set(
-  [...chatModels, geminiChatModel].map((m) => m.id)
+  [...chatModels, geminiChatModel, groqChatModel].map((m) => m.id)
 );
 
-export const modelsByProvider = [...chatModels, geminiChatModel].reduce(
+export const modelsByProvider = [...chatModels, geminiChatModel, groqChatModel].reduce(
   (acc, model) => {
     if (!acc[model.provider]) {
       acc[model.provider] = [];
