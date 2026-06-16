@@ -25,10 +25,10 @@ export type ChatModel = {
 
 // ─── Gemini model shown in UI when direct Gemini provider is active ───────────
 export const geminiChatModel: ChatModel = {
-  id: "google/gemini-2.0-flash",
-  name: "Gemini 2.0 Flash",
+  id: "google/gemini-2.5-flash",
+  name: "Gemini 2.5 Flash",
   provider: "google",
-  description: "Google Gemini 2.0 Flash — fast and capable",
+  description: "Google Gemini 2.5 Flash — fast and capable",
 };
 
 // ─── Original gateway models (preserved untouched for future AI Gateway use) ──
@@ -72,7 +72,6 @@ export const chatModels: ChatModel[] = [
   },
 ];
 
-// Returns Gemini model if direct key is available, otherwise gateway models
 export function getActiveModels(): ChatModel[] {
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return [geminiChatModel];
