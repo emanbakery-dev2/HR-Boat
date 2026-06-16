@@ -25,6 +25,19 @@ import { getLanguageModel } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { editDocument } from "@/lib/ai/tools/edit-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
+import {
+  muqeemRenewIqama,
+  muqeemIssueExitReentry,
+  muqeemCancelExitReentry,
+  muqeemExtendExitReentry,
+  muqeemIssueFinalExit,
+  muqeemCancelFinalExit,
+  muqeemExtendVisitVisa,
+  muqeemCheckMolApproval,
+  muqeemChangeOccupation,
+  muqeemTransferIqama,
+  muqeemRenewPassport,
+} from "@/lib/ai/tools/muqeem";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { isProductionEnvironment } from "@/lib/constants";
@@ -219,6 +232,17 @@ export async function POST(request: Request) {
                   "editDocument",
                   "updateDocument",
                   "requestSuggestions",
+                  "muqeemRenewIqama",
+                  "muqeemIssueExitReentry",
+                  "muqeemCancelExitReentry",
+                  "muqeemExtendExitReentry",
+                  "muqeemIssueFinalExit",
+                  "muqeemCancelFinalExit",
+                  "muqeemExtendVisitVisa",
+                  "muqeemCheckMolApproval",
+                  "muqeemChangeOccupation",
+                  "muqeemTransferIqama",
+                  "muqeemRenewPassport",
                 ]
               : [],
           providerOptions: {
@@ -247,6 +271,17 @@ export async function POST(request: Request) {
               dataStream,
               modelId: chatModel,
             }),
+            muqeemRenewIqama,
+            muqeemIssueExitReentry,
+            muqeemCancelExitReentry,
+            muqeemExtendExitReentry,
+            muqeemIssueFinalExit,
+            muqeemCancelFinalExit,
+            muqeemExtendVisitVisa,
+            muqeemCheckMolApproval,
+            muqeemChangeOccupation,
+            muqeemTransferIqama,
+            muqeemRenewPassport,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
