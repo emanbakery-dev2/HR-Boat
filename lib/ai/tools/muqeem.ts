@@ -1,16 +1,14 @@
 /**
  * Muqeem API tools — lets Gemini call the Saudi Muqeem platform on behalf
  * of the owner.  All API credentials are kept server-side in env vars.
+ *
+ * IMPORTANT: env vars are read lazily inside getMuqeemToken() so that
+ * values added after the build are picked up at runtime (not frozen at
+ * module-load / build time).
  */
 
 import { tool } from "ai";
 import { z } from "zod";
-
-const MUQEEM_BASE_URL = process.env.MUQEEM_BASE_URL ?? "https://muqeem.sa";
-const MUQEEM_APP_ID   = process.env.MUQEEM_APP_ID   ?? "";
-const MUQEEM_APP_KEY  = process.env.MUQEEM_APP_KEY  ?? "";
-const MUQEEM_USERNAME = process.env.MUQEEM_USERNAME ?? "";
-const MUQEEM_PASSWORD = process.env.MUQEEM_PASSWORD ?? "";
 
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
@@ -18,14 +16,27 @@ let tokenExpiry = 0;
 async function getMuqeemToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
 
-  const res = await fetch(`${MUQEEM_BASE_URL}/api/authenticate`, {
+  // Read env vars lazily so Vercel runtime values are used, not build-time snapshots
+  const baseUrl  = process.env.MUQEEM_BASE_URL ?? "https://muqeem.sa";
+  const appId    = process.env.MUQEEM_APP_ID   ?? "";
+  const appKey   = process.env.MUQEEM_APP_KEY  ?? "";
+  const username = process.env.MUQEEM_USERNAME ?? "";
+  const password = process.env.MUQEEM_PASSWORD ?? "";
+
+  if (!appId || !appKey || !username || !password) {
+    throw new Error(
+      "Muqeem credentials are not configured. Please set MUQEEM_APP_ID, MUQEEM_APP_KEY, MUQEEM_USERNAME and MUQEEM_PASSWORD in your environment variables."
+    );
+  }
+
+  const res = await fetch(`${baseUrl}/api/authenticate`, {
     method: "POST",
     headers: {
-      app_id: MUQEEM_APP_ID,
-      app_key: MUQEEM_APP_KEY,
+      app_id: appId,
+      app_key: appKey,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ username: MUQEEM_USERNAME, password: MUQEEM_PASSWORD }),
+    body: JSON.stringify({ username, password }),
   });
 
   if (!res.ok) {
@@ -46,12 +57,16 @@ async function muqeemPost(
   path: string,
   body: Record<string, unknown>
 ) {
+  const baseUrl = process.env.MUQEEM_BASE_URL ?? "https://muqeem.sa";
+  const appId   = process.env.MUQEEM_APP_ID   ?? "";
+  const appKey  = process.env.MUQEEM_APP_KEY  ?? "";
   const token = await getMuqeemToken();
-  const res = await fetch(`${MUQEEM_BASE_URL}${path}`, {
+
+  const res = await fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: {
-      app_id: MUQEEM_APP_ID,
-      app_key: MUQEEM_APP_KEY,
+      app_id: appId,
+      app_key: appKey,
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
