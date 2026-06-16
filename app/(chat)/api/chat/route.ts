@@ -49,10 +49,10 @@ import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 export const maxDuration = 60;
 
-// Direct provider model IDs that handle tool calls differently or not at all.
-// For these we disable the tool-use layer entirely to avoid SDK errors.
-const DIRECT_PROVIDER_IDS = new Set([
-  geminiChatModel.id,
+// Models that do NOT support tool calls — tools must be disabled for these.
+// Gemini DOES support tools via @ai-sdk/google, so it is NOT in this set.
+// Only Groq's llama model needs tools disabled in this setup.
+const NO_TOOLS_MODEL_IDS = new Set([
   groqChatModel.id,
 ]);
 
@@ -194,12 +194,10 @@ export async function POST(request: Request) {
     const capabilities = modelCapabilities[chatModel];
     const isReasoningModel = capabilities?.reasoning === true;
 
-    // For direct provider models (Gemini, Groq) we rely on the hardcoded
-    // capabilities set in the /api/models route rather than gateway metadata.
-    // Groq's llama model does NOT support tools via @ai-sdk/groq in this setup,
-    // so we disable tools for all direct provider models to be safe.
-    const isDirectProvider = DIRECT_PROVIDER_IDS.has(chatModel);
-    const supportsTools = isDirectProvider ? false : (capabilities?.tools === true);
+    // Groq does not support tool calls in this setup — disable tools for it.
+    // Gemini DOES support tools so it falls through to the normal capabilities check.
+    const forceNoTools = NO_TOOLS_MODEL_IDS.has(chatModel);
+    const supportsTools = forceNoTools ? false : (capabilities?.tools === true || chatModel === geminiChatModel.id);
 
     const modelMessages = await convertToModelMessages(uiMessages);
 
@@ -211,15 +209,18 @@ export async function POST(request: Request) {
           system: systemPrompt({ requestHints, supportsTools }),
           messages: modelMessages,
           stopWhen: stepCountIs(5),
-          experimental_activeTools: supportsTools
-            ? [
-                "getWeather",
-                "createDocument",
-                "editDocument",
-                "updateDocument",
-                "requestSuggestions",
-              ]
-            : [],
+          experimental_activeTools:
+            isReasoningModel && !supportsTools
+              ? []
+              : supportsTools
+              ? [
+                  "getWeather",
+                  "createDocument",
+                  "editDocument",
+                  "updateDocument",
+                  "requestSuggestions",
+                ]
+              : [],
           providerOptions: {
             ...(modelConfig?.gatewayOrder && {
               gateway: { order: modelConfig.gatewayOrder },
