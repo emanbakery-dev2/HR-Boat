@@ -5,6 +5,11 @@
  * IMPORTANT: env vars are read lazily inside getMuqeemToken() so that
  * values added after the build are picked up at runtime (not frozen at
  * module-load / build time).
+ *
+ * Header names per Muqeem OpenAPI spec:
+ *   appid   (not app_id)
+ *   appkey  (not app_key)
+ *   X-INTEGRATOR-ID  (only for integrators, optional)
  */
 
 import { tool } from "ai";
@@ -16,12 +21,12 @@ let tokenExpiry = 0;
 async function getMuqeemToken(): Promise<string> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
 
-  // Read env vars lazily so Vercel runtime values are used, not build-time snapshots
-  const baseUrl  = process.env.MUQEEM_BASE_URL ?? "https://muqeem.sa";
-  const appId    = process.env.MUQEEM_APP_ID   ?? "";
-  const appKey   = process.env.MUQEEM_APP_KEY  ?? "";
-  const username = process.env.MUQEEM_USERNAME ?? "";
-  const password = process.env.MUQEEM_PASSWORD ?? "";
+  const baseUrl      = process.env.MUQEEM_BASE_URL      ?? "https://muqeem.sa";
+  const appId        = process.env.MUQEEM_APP_ID        ?? "";
+  const appKey       = process.env.MUQEEM_APP_KEY       ?? "";
+  const username     = process.env.MUQEEM_USERNAME      ?? "";
+  const password     = process.env.MUQEEM_PASSWORD      ?? "";
+  const integratorId = process.env.MUQEEM_INTEGRATOR_ID ?? "";
 
   if (!appId || !appKey || !username || !password) {
     throw new Error(
@@ -29,13 +34,16 @@ async function getMuqeemToken(): Promise<string> {
     );
   }
 
+  const headers: Record<string, string> = {
+    appid: appId,
+    appkey: appKey,
+    "Content-Type": "application/json",
+  };
+  if (integratorId) headers["X-INTEGRATOR-ID"] = integratorId;
+
   const res = await fetch(`${baseUrl}/api/authenticate`, {
     method: "POST",
-    headers: {
-      app_id: appId,
-      app_key: appKey,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({ username, password }),
   });
 
@@ -57,19 +65,23 @@ async function muqeemPost(
   path: string,
   body: Record<string, unknown>
 ) {
-  const baseUrl = process.env.MUQEEM_BASE_URL ?? "https://muqeem.sa";
-  const appId   = process.env.MUQEEM_APP_ID   ?? "";
-  const appKey  = process.env.MUQEEM_APP_KEY  ?? "";
+  const baseUrl      = process.env.MUQEEM_BASE_URL      ?? "https://muqeem.sa";
+  const appId        = process.env.MUQEEM_APP_ID        ?? "";
+  const appKey       = process.env.MUQEEM_APP_KEY       ?? "";
+  const integratorId = process.env.MUQEEM_INTEGRATOR_ID ?? "";
   const token = await getMuqeemToken();
+
+  const headers: Record<string, string> = {
+    appid: appId,
+    appkey: appKey,
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (integratorId) headers["X-INTEGRATOR-ID"] = integratorId;
 
   const res = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: {
-      app_id: appId,
-      app_key: appKey,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -140,7 +152,7 @@ export const muqeemCancelExitReentry = tool({
     visaNumber: z.string().describe("The visa number to cancel"),
   }),
   execute: async (input) =>
-    muqeemPost("/api/v1/exit-reentry/cancel", input),
+    muqeemPost("/api/v1/exit-reentry/cancel", { iqamaNumber: input.iqamaNumber, erVisaNumber: input.visaNumber }),
 });
 
 export const muqeemExtendExitReentry = tool({
