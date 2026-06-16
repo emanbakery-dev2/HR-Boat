@@ -39,6 +39,8 @@ import {
 import {
   type ChatModel,
   chatModels,
+  geminiChatModel,
+  groqChatModel,
   DEFAULT_CHAT_MODEL,
   type ModelCapabilities,
 } from "@/lib/ai/models";
@@ -61,6 +63,13 @@ import {
 } from "./slash-commands";
 import { SuggestedActions } from "./suggested-actions";
 import type { VisibilityType } from "./visibility-selector";
+
+// All model IDs that are fully selectable (not grayed-out/locked)
+const CURATED_IDS = new Set([
+  ...chatModels.map((m) => m.id),
+  geminiChatModel.id,
+  groqChatModel.id,
+]);
 
 function setCookie(name: string, value: string) {
   const maxAge = 60 * 60 * 24 * 365;
@@ -555,31 +564,14 @@ function PureMultimodalInput({
 export const MultimodalInput = memo(
   PureMultimodalInput,
   (prevProps, nextProps) => {
-    if (prevProps.input !== nextProps.input) {
-      return false;
-    }
-    if (prevProps.status !== nextProps.status) {
-      return false;
-    }
-    if (!equal(prevProps.attachments, nextProps.attachments)) {
-      return false;
-    }
-    if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) {
-      return false;
-    }
-    if (prevProps.selectedModelId !== nextProps.selectedModelId) {
-      return false;
-    }
-    if (prevProps.editingMessage !== nextProps.editingMessage) {
-      return false;
-    }
-    if (prevProps.isLoading !== nextProps.isLoading) {
-      return false;
-    }
-    if (prevProps.messages.length !== nextProps.messages.length) {
-      return false;
-    }
-
+    if (prevProps.input !== nextProps.input) return false;
+    if (prevProps.status !== nextProps.status) return false;
+    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
+    if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType) return false;
+    if (prevProps.selectedModelId !== nextProps.selectedModelId) return false;
+    if (prevProps.editingMessage !== nextProps.editingMessage) return false;
+    if (prevProps.isLoading !== nextProps.isLoading) return false;
+    if (prevProps.messages.length !== nextProps.messages.length) return false;
     return true;
   }
 );
@@ -642,8 +634,15 @@ function PureModelSelectorCompact({
 
   const capabilities: Record<string, ModelCapabilities> | undefined =
     modelsData?.capabilities ?? modelsData;
+
+  // Fallback includes all curated models: direct providers + gateway
+  const fallbackModels: ChatModel[] = [
+    geminiChatModel,
+    groqChatModel,
+    ...chatModels,
+  ];
   const dynamicModels: ChatModel[] | undefined = modelsData?.models;
-  const activeModels = dynamicModels ?? chatModels;
+  const activeModels = dynamicModels ?? fallbackModels;
 
   const selectedModel =
     activeModels.find((m: ChatModel) => m.id === selectedModelId) ??
@@ -667,35 +666,30 @@ function PureModelSelectorCompact({
         <ModelSelectorInput placeholder="Search models..." />
         <ModelSelectorList>
           {(() => {
-            const curatedIds = new Set(chatModels.map((m) => m.id));
             const allModels = dynamicModels
               ? [
-                  ...chatModels,
-                  ...dynamicModels.filter((m) => !curatedIds.has(m.id)),
+                  ...fallbackModels,
+                  ...dynamicModels.filter(
+                    (m) => !fallbackModels.some((f) => f.id === m.id)
+                  ),
                 ]
-              : chatModels;
+              : fallbackModels;
 
             const grouped: Record<
               string,
               { model: ChatModel; curated: boolean }[]
             > = {};
+
             for (const model of allModels) {
-              const key = curatedIds.has(model.id)
-                ? "_available"
-                : model.provider;
-              if (!grouped[key]) {
-                grouped[key] = [];
-              }
-              grouped[key].push({ model, curated: curatedIds.has(model.id) });
+              const isCurated = CURATED_IDS.has(model.id);
+              const key = isCurated ? "_available" : model.provider;
+              if (!grouped[key]) grouped[key] = [];
+              grouped[key].push({ model, curated: isCurated });
             }
 
             const sortedKeys = Object.keys(grouped).sort((a, b) => {
-              if (a === "_available") {
-                return -1;
-              }
-              if (b === "_available") {
-                return 1;
-              }
+              if (a === "_available") return -1;
+              if (b === "_available") return 1;
               return a.localeCompare(b);
             });
 
@@ -707,6 +701,7 @@ function PureModelSelectorCompact({
               cohere: "Cohere",
               deepseek: "DeepSeek",
               google: "Google",
+              groq: "Groq",
               inception: "Inception",
               kwaipilot: "Kwaipilot",
               meituan: "Meituan",
@@ -745,9 +740,7 @@ function PureModelSelectorCompact({
                       )}
                       key={model.id}
                       onSelect={() => {
-                        if (!curated) {
-                          return;
-                        }
+                        if (!curated) return;
                         onModelChange?.(model.id);
                         setCookie("chat-model", model.id);
                         setOpen(false);
