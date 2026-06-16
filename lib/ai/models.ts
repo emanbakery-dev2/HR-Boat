@@ -23,7 +23,7 @@ export type ChatModel = {
   reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
 };
 
-// ─── Gemini model ──────────────────────────────────────────────────────────────────
+// ─── Direct provider models ─────────────────────────────────────────────────────
 export const geminiChatModel: ChatModel = {
   id: "google/gemini-2.5-flash",
   name: "Gemini 2.5 Flash",
@@ -31,7 +31,6 @@ export const geminiChatModel: ChatModel = {
   description: "Google Gemini 2.5 Flash — fast and capable",
 };
 
-// ─── Groq model ───────────────────────────────────────────────────────────────────
 export const groqChatModel: ChatModel = {
   id: "groq/llama-3.3-70b-versatile",
   name: "Llama 3.3 70B",
@@ -39,7 +38,7 @@ export const groqChatModel: ChatModel = {
   description: "Meta Llama 3.3 70B on Groq — ultra-fast inference",
 };
 
-// ─── Original gateway models (preserved for future AI Gateway use) ───────────
+// ─── Vercel AI Gateway models (preserved untouched) ───────────────────────────
 export const chatModels: ChatModel[] = [
   {
     id: "deepseek/deepseek-v3.2",
@@ -80,16 +79,22 @@ export const chatModels: ChatModel[] = [
   },
 ];
 
-// Returns the active model based on available API keys
-// Priority: Gemini > Groq > Gateway models
+// ─── Returns all models available based on which API keys are configured ────────
+// Direct provider models appear first, then gateway models.
+// Gateway models are always included — they activate once AI Gateway is set up.
 export function getActiveModels(): ChatModel[] {
+  const directModels: ChatModel[] = [];
+
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return [geminiChatModel];
+    directModels.push(geminiChatModel);
   }
+
   if (process.env.GROQ_API_KEY) {
-    return [groqChatModel];
+    directModels.push(groqChatModel);
   }
-  return chatModels;
+
+  // Always include gateway models so they're ready when AI Gateway is activated
+  return [...directModels, ...chatModels];
 }
 
 export async function getCapabilities(): Promise<
@@ -182,7 +187,11 @@ export const allowedModelIds = new Set(
   [...chatModels, geminiChatModel, groqChatModel].map((m) => m.id)
 );
 
-export const modelsByProvider = [...chatModels, geminiChatModel, groqChatModel].reduce(
+export const modelsByProvider = [
+  ...chatModels,
+  geminiChatModel,
+  groqChatModel,
+].reduce(
   (acc, model) => {
     if (!acc[model.provider]) {
       acc[model.provider] = [];

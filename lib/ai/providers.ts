@@ -6,13 +6,13 @@ import { titleModel } from "./models";
 
 // ─── Gemini direct provider ──────────────────────────────────────────────────
 const geminiApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-const geminiProvider = geminiApiKey
+export const geminiProvider = geminiApiKey
   ? createGoogleGenerativeAI({ apiKey: geminiApiKey })
   : null;
 
 // ─── Groq direct provider ────────────────────────────────────────────────────
 const groqApiKey = process.env.GROQ_API_KEY;
-const groqProvider = groqApiKey
+export const groqProvider = groqApiKey
   ? createGroq({ apiKey: groqApiKey })
   : null;
 
@@ -30,20 +30,28 @@ export const myProvider = isTestEnvironment
   : null;
 
 // ─── Language model resolver ──────────────────────────────────────────────────
-// Priority: Test mock → Gemini → Groq → Vercel AI Gateway
+// Routes by model ID prefix:
+//   "google/*"  → Gemini direct provider
+//   "groq/*"    → Groq direct provider
+//   anything else → Vercel AI Gateway (untouched)
 export function getLanguageModel(modelId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
   }
 
-  if (geminiProvider) {
-    return geminiProvider("gemini-2.5-flash");
+  if (modelId.startsWith("google/") && geminiProvider) {
+    // Strip the "google/" prefix to get the raw Gemini model name
+    const geminiModelId = modelId.replace("google/", "");
+    return geminiProvider(geminiModelId);
   }
 
-  if (groqProvider) {
-    return groqProvider("llama-3.3-70b-versatile");
+  if (modelId.startsWith("groq/") && groqProvider) {
+    // Strip the "groq/" prefix to get the raw Groq model name
+    const groqModelId = modelId.replace("groq/", "");
+    return groqProvider(groqModelId);
   }
 
+  // ← Vercel AI Gateway — handles all gateway model IDs untouched
   return gateway.languageModel(modelId);
 }
 
@@ -52,6 +60,7 @@ export function getTitleModel() {
     return myProvider.languageModel("title-model");
   }
 
+  // Title generation: prefer Gemini > Groq > gateway in that order
   if (geminiProvider) {
     return geminiProvider("gemini-2.5-flash");
   }
