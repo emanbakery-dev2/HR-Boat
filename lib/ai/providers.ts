@@ -1,4 +1,4 @@
-import { customProvider, gateway } from "ai";
+import { customProvider, gateway, type LanguageModel } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { isTestEnvironment } from "../constants";
@@ -31,43 +31,35 @@ export const myProvider = isTestEnvironment
 
 // ─── Language model resolver ──────────────────────────────────────────────────
 // Routes by model ID prefix:
-//   "google/*"  → Gemini direct provider
-//   "groq/*"    → Groq direct provider
-//   anything else → Vercel AI Gateway (untouched)
-export function getLanguageModel(modelId: string) {
+//   "google/*"  → Gemini direct provider (cast to LanguageModel for V3 compat)
+//   "groq/*"    → Groq direct provider   (cast to LanguageModel for V3 compat)
+//   anything else → Vercel AI Gateway (untouched, native V3)
+export function getLanguageModel(modelId: string): LanguageModel {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
   }
 
   if (modelId.startsWith("google/") && geminiProvider) {
-    // Strip the "google/" prefix to get the raw Gemini model name
     const geminiModelId = modelId.replace("google/", "");
-    return geminiProvider(geminiModelId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return geminiProvider(geminiModelId) as any as LanguageModel;
   }
 
   if (modelId.startsWith("groq/") && groqProvider) {
-    // Strip the "groq/" prefix to get the raw Groq model name
     const groqModelId = modelId.replace("groq/", "");
-    return groqProvider(groqModelId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return groqProvider(groqModelId) as any as LanguageModel;
   }
 
   // ← Vercel AI Gateway — handles all gateway model IDs untouched
   return gateway.languageModel(modelId);
 }
 
-export function getTitleModel() {
+// Title generation always goes through the gateway to keep the return type
+// fully compatible with LanguageModelV3 (avoids V1/V3 type mismatch).
+export function getTitleModel(): LanguageModel {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("title-model");
   }
-
-  // Title generation: prefer Gemini > Groq > gateway in that order
-  if (geminiProvider) {
-    return geminiProvider("gemini-2.5-flash");
-  }
-
-  if (groqProvider) {
-    return groqProvider("llama-3.3-70b-versatile");
-  }
-
   return gateway.languageModel(titleModel.id);
 }
