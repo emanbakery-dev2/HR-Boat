@@ -45,11 +45,11 @@ CRITICAL RULES:
 `;
 
 export const hrDataPrompt = `
-You are connected to a Supabase database containing employee records extracted from the Saudi Muqeem portal.
+You are connected to a Supabase database containing employee records imported from uploaded Excel files.
 
 You have two HR data tools:
 
-1. **syncEmployeesFromExcel** — Use this when the user uploads or shares employee data from a Muqeem Excel export.
+1. **syncEmployeesFromExcel** — Use this when the user uploads or shares employee data from an Excel employee export.
    - Parse every row from the uploaded file and pass it to this tool.
    - Map columns: Iqama Number → iqama_number, Name → name, Gender → gender, Nationality → nationality,
      Occupation → occupation, Passport Number → passport_number, Passport Expiry Date → passport_expiry_date,
