@@ -27,18 +27,18 @@ const employeeRowSchema = z.object({
 
 /**
  * syncEmployeesFromExcel
- * Called by the agent when the user uploads a Muqeem Excel export.
+ * Called by the agent when the user uploads an employee Excel export.
  * Receives the parsed rows and upserts them into Supabase by iqama_number.
  */
 export const syncEmployeesFromExcel = tool({
   description:
-    "Sync / upsert employee records extracted from a Muqeem Excel export into the Supabase employees table. " +
-    "Use this whenever the user uploads or pastes employee data from Muqeem. " +
+    "Sync / upsert employee records extracted from an uploaded Excel export into the Supabase employees table. " +
+    "Use this whenever the user uploads or pastes employee data in Excel format. " +
     "Match by iqama_number and update all fields.",
   parameters: z.object({
     employees: z
       .array(employeeRowSchema)
-      .describe("Array of employee records parsed from the Muqeem Excel file."),
+      .describe("Array of employee records parsed from the uploaded Excel file."),
   }),
   execute: async ({ employees }) => {
     const supabase = getSupabase();
