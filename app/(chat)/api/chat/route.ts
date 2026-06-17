@@ -25,19 +25,8 @@ import { getLanguageModel } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { editDocument } from "@/lib/ai/tools/edit-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
-import {
-  muqeemRenewIqama,
-  muqeemIssueExitReentry,
-  muqeemCancelExitReentry,
-  muqeemExtendExitReentry,
-  muqeemIssueFinalExit,
-  muqeemCancelFinalExit,
-  muqeemExtendVisitVisa,
-  muqeemCheckMolApproval,
-  muqeemChangeOccupation,
-  muqeemTransferIqama,
-  muqeemRenewPassport,
-} from "@/lib/ai/tools/muqeem";
+import { syncEmployeesFromExcel } from "@/lib/ai/tools/employees-sync";
+import { queryEmployees } from "@/lib/ai/tools/employees-query";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { isProductionEnvironment } from "@/lib/constants";
@@ -62,9 +51,6 @@ import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 export const maxDuration = 60;
 
-// Models that do NOT support tool calls — tools must be disabled for these.
-// Gemini DOES support tools via @ai-sdk/google, so it is NOT in this set.
-// Only Groq's llama model needs tools disabled in this setup.
 const NO_TOOLS_MODEL_IDS = new Set([
   groqChatModel.id,
 ]);
@@ -207,8 +193,6 @@ export async function POST(request: Request) {
     const capabilities = modelCapabilities[chatModel];
     const isReasoningModel = capabilities?.reasoning === true;
 
-    // Groq does not support tool calls in this setup — disable tools for it.
-    // Gemini DOES support tools so it falls through to the normal capabilities check.
     const forceNoTools = NO_TOOLS_MODEL_IDS.has(chatModel);
     const supportsTools = forceNoTools ? false : (capabilities?.tools === true || chatModel === geminiChatModel.id);
 
@@ -232,17 +216,8 @@ export async function POST(request: Request) {
                   "editDocument",
                   "updateDocument",
                   "requestSuggestions",
-                  "muqeemRenewIqama",
-                  "muqeemIssueExitReentry",
-                  "muqeemCancelExitReentry",
-                  "muqeemExtendExitReentry",
-                  "muqeemIssueFinalExit",
-                  "muqeemCancelFinalExit",
-                  "muqeemExtendVisitVisa",
-                  "muqeemCheckMolApproval",
-                  "muqeemChangeOccupation",
-                  "muqeemTransferIqama",
-                  "muqeemRenewPassport",
+                  "syncEmployeesFromExcel",
+                  "queryEmployees",
                 ]
               : [],
           providerOptions: {
@@ -271,17 +246,8 @@ export async function POST(request: Request) {
               dataStream,
               modelId: chatModel,
             }),
-            muqeemRenewIqama,
-            muqeemIssueExitReentry,
-            muqeemCancelExitReentry,
-            muqeemExtendExitReentry,
-            muqeemIssueFinalExit,
-            muqeemCancelFinalExit,
-            muqeemExtendVisitVisa,
-            muqeemCheckMolApproval,
-            muqeemChangeOccupation,
-            muqeemTransferIqama,
-            muqeemRenewPassport,
+            syncEmployeesFromExcel,
+            queryEmployees,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
